@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Media Ingest Pi{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Configure global settings and MQTT integration</p>
+</div>
+
+<form id="settings-form" onsubmit="saveSettings(event)">
+    <!-- MQTT Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">MQTT Integration</h2>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">
+                <input type="checkbox" id="mqtt-enabled" class="form-checkbox">
+                Enable MQTT
+            </label>
+        </div>
+        
+        <div id="mqtt-settings">
+            <div class="form-group">
+                <label class="form-label">Broker Address</label>
+                <input type="text" id="mqtt-broker" class="form-input" placeholder="homeassistant.local">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Port</label>
+                <input type="number" id="mqtt-port" class="form-input" value="1883">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" id="mqtt-username" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="mqtt-password" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Base Topic</label>
+                <input type="text" id="mqtt-base-topic" class="form-input" value="homeassistant/media_ingest">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Default Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Default Settings</h2>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Default Drop Location</label>
+            <input type="text" id="default-drop-location" class="form-input" placeholder="/mnt/nas/incoming">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Temp Directory</label>
+            <input type="text" id="default-temp-dir" class="form-input" placeholder="/tmp/media_ingest">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">
+                <input type="checkbox" id="default-verify-checksums" class="form-checkbox" checked>
+                Verify file checksums
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Concurrent Transfers</label>
+            <input type="number" id="default-concurrent-transfers" class="form-input" value="1" min="1" max="4">
+        </div>
+    </div>
+    
+    <!-- Web Server Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Web Server</h2>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Host</label>
+            <input type="text" id="web-host" class="form-input" value="0.0.0.0">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Port</label>
+            <input type="number" id="web-port" class="form-input" value="5000">
+        </div>
+    </div>
+    
+    <!-- System Info -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">System Information</h2>
+        </div>
+        
+        <div class="grid grid-2">
+            <div>
+                <strong>MQTT Status:</strong>
+                <span id="mqtt-status" class="badge badge-info">Checking...</span>
+            </div>
+            <div>
+                <strong>Disk Usage:</strong>
+                <span id="disk-usage">Loading...</span>
+            </div>
+        </div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+</form>
+
+<script src="/static/js/settings.js"></script>
+{% endblock %}
+

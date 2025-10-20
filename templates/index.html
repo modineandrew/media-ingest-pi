@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Media Ingest Pi{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Monitor active transfers and recent activity</p>
+</div>
+
+<!-- Statistics -->
+<div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value" id="stat-active-transfers">0</div>
+        <div class="stat-label">Active Transfers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-mounted-devices">0</div>
+        <div class="stat-label">Mounted Devices</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-total-transfers">0</div>
+        <div class="stat-label">Total Transfers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-files-transferred">0</div>
+        <div class="stat-label">Files Transferred</div>
+    </div>
+</div>
+
+<!-- Active Transfers -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Active Transfers</h2>
+    </div>
+    <div id="active-transfers-container">
+        <div class="empty-state">
+            <div class="empty-state-icon">⏳</div>
+            <p>No active transfers</p>
+        </div>
+    </div>
+</div>
+
+<!-- Mounted Devices -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Mounted Devices</h2>
+        <button class="btn btn-sm btn-secondary" onclick="refreshMountedDevices()">Refresh</button>
+    </div>
+    <div id="mounted-devices-container">
+        <div class="spinner"></div>
+    </div>
+</div>
+
+<!-- Recent Transfers -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Transfers (Last 24 Hours)</h2>
+    </div>
+    <div class="table-container">
+        <table id="recent-transfers-table">
+            <thead>
+                <tr>
+                    <th>Device</th>
+                    <th>Status</th>
+                    <th>Files</th>
+                    <th>Time</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody id="recent-transfers-body">
+                <tr>
+                    <td colspan="5" class="text-center">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}
+

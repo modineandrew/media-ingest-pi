@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Devices - Media Ingest Pi{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex flex-between flex-center">
+        <div>
+            <h1 class="page-title">Device Profiles</h1>
+            <p class="page-subtitle">Manage device configurations</p>
+        </div>
+        <button class="btn btn-primary" onclick="showAddDeviceModal()">+ Add Device</button>
+    </div>
+</div>
+
+<div id="devices-container">
+    <div class="spinner"></div>
+</div>
+
+<!-- Add/Edit Device Modal -->
+<div id="device-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Add Device</h2>
+            <button class="modal-close" onclick="closeDeviceModal()">&times;</button>
+        </div>
+        <form id="device-form" onsubmit="saveDevice(event)">
+            <input type="hidden" id="device-id">
+            
+            <div class="form-group">
+                <label class="form-label">Device Name *</label>
+                <input type="text" id="device-name" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Drop Location *</label>
+                <input type="text" id="device-drop-location" class="form-input" required 
+                       placeholder="/mnt/nas/photos">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">File Types (comma-separated)</label>
+                <input type="text" id="device-file-types" class="form-input" 
+                       placeholder=".jpg, .jpeg, .mp4, .mov">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Naming Pattern</label>
+                <input type="text" id="device-naming-pattern" class="form-input" 
+                       value="{date}_{device}_{counter:04d}{ext}">
+                <small class="text-secondary">Variables: {date}, {datetime}, {device}, {counter}, {original}, {ext}</small>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Identifiers</label>
+                <input type="text" id="device-uuid" class="form-input" placeholder="UUID (optional)">
+                <input type="text" id="device-label" class="form-input mt-1" placeholder="Label (optional)">
+                <input type="text" id="device-vendor" class="form-input mt-1" placeholder="Vendor (optional)">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="device-auto-ingest" class="form-checkbox" checked>
+                    Auto-ingest on detection
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="device-preserve-structure" class="form-checkbox" checked>
+                    Preserve directory structure
+                </label>
+                <small class="text-secondary">When checked, files are copied with their folder structure intact. Uncheck to flatten all files into one directory.</small>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="device-delete-after" class="form-checkbox">
+                    Delete source files after successful transfer
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="device-enabled" class="form-checkbox" checked>
+                    Device enabled
+                </label>
+            </div>
+            
+            <div class="flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Device</button>
+                <button type="button" class="btn btn-secondary" onclick="closeDeviceModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/static/js/devices.js"></script>
+{% endblock %}
+

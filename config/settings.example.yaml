@@ -1,0 +1,17 @@
+settings:
+  mqtt:
+    enabled: true
+    broker: "homeassistant.local"
+    port: 1883
+    username: "mqtt_user"
+    password: "mqtt_pass"
+    base_topic: "homeassistant/media_ingest"
+  defaults:
+    drop_location: "/mnt/nas/incoming"
+    temp_dir: "/tmp/media_ingest"
+    verify_checksums: true
+    concurrent_transfers: 4  # Number of files to copy in parallel (1-8 recommended)
+  web:
+    port: 5000
+    host: "0.0.0.0"
+

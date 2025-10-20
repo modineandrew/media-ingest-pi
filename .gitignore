@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Configuration files with sensitive data
+config/settings.yaml
+config/devices.yaml
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+nohup.out
+
+# Temporary files
+/tmp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Media files (if testing)
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.mov
+*.avi
+*.fits
+*.raw
+*.cr2
+*.nef
+
+# Local testing
+/test_data/
+/drop/

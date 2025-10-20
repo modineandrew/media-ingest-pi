@@ -1,0 +1,25 @@
+devices:
+  - id: "example-device-1"
+    name: "Camera SD Card"
+    identifiers:
+      uuid: "ABCD-1234"
+      label: "CAMERA_SD"
+      vendor: "SanDisk"
+    auto_ingest: true
+    drop_location: "/mnt/nas/photos/camera"
+    file_types: [".jpg", ".jpeg", ".raw", ".dng", ".cr2", ".nef"]
+    naming_pattern: "{date}_{device}_{counter:04d}{ext}"
+    delete_after: false
+    enabled: true
+  
+  - id: "example-device-2"
+    name: "Drone MicroSD"
+    identifiers:
+      label: "DRONE"
+    auto_ingest: true
+    drop_location: "/mnt/nas/videos/drone"
+    file_types: [".mp4", ".mov", ".jpg"]
+    naming_pattern: "{datetime}_{original}{ext}"
+    delete_after: false
+    enabled: true
+

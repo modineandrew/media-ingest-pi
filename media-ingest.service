@@ -1,0 +1,25 @@
+[Unit]
+Description=Media Ingest Pi - Automatic USB/SD Card File Transfer Service
+After=network.target
+
+[Service]
+Type=simple
+User=bscholer
+Group=bscholer
+WorkingDirectory=/home/bscholer/media-ingest-pi
+ExecStart=/home/bscholer/media-ingest-pi/.venv/bin/python3 -u /home/bscholer/media-ingest-pi/src/main.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment="PYTHONUNBUFFERED=1"
+
+# Security settings (optional, can be adjusted based on needs)
+#NoNewPrivileges=true
+#PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
