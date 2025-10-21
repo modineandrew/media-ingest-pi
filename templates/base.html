@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Media Ingest Pi{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/icon.png">
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     {% block extra_head %}{% endblock %}
@@ -12,7 +13,7 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="/" class="logo">📁 Media Ingest Pi</a>
+                <a href="/" class="logo"><img src="/static/icon.png" alt="Media Ingest Pi" style="height: 32px; vertical-align: middle; margin-right: 8px;">Media Ingest Pi</a>
                 <nav>
                     <ul>
                         <li><a href="/" id="nav-dashboard">Dashboard</a></li>

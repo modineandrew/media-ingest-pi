@@ -42,11 +42,6 @@ nohup.out
 Thumbs.db
 
 # Media files (if testing) - but allow screenshots
-*.jpg
-*.jpeg
-*.png
-!screenshots/*.png
-!screenshots/*.jpg
 *.mp4
 *.mov
 *.avi

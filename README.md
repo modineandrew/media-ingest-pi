@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="static/icon.png" alt="Media Ingest Pi" width="128" height="128">
+</div>
+
 # Media Ingest Pi
 
 A Raspberry Pi service that automatically detects USB drives, SD cards, and other removable media, and copies files to configured network locations. Features a web interface for management and MQTT integration with Home Assistant.
