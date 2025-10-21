@@ -9,7 +9,41 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mqtt-enabled').addEventListener('change', function() {
         document.getElementById('mqtt-settings').style.display = this.checked ? 'block' : 'none';
     });
+    
+    // Toggle LED settings visibility
+    document.getElementById('led-enabled').addEventListener('change', function() {
+        document.getElementById('led-settings').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Update brightness value display
+    document.getElementById('led-brightness').addEventListener('input', function() {
+        document.getElementById('led-brightness-value').textContent = this.value;
+    });
+    
+    // Color preview updates
+    const colorInputs = ['idle', 'progress', 'success', 'error'];
+    colorInputs.forEach(color => {
+        ['r', 'g', 'b'].forEach(channel => {
+            const input = document.getElementById(`led-${color}-${channel}`);
+            if (input) {
+                input.addEventListener('input', function() {
+                    updateColorPreview(color);
+                });
+            }
+        });
+    });
 });
+
+// Update color preview
+function updateColorPreview(colorType) {
+    const r = document.getElementById(`led-${colorType}-r`).value || 0;
+    const g = document.getElementById(`led-${colorType}-g`).value || 0;
+    const b = document.getElementById(`led-${colorType}-b`).value || 0;
+    const preview = document.getElementById(`led-${colorType}-preview`);
+    if (preview) {
+        preview.style.background = `rgb(${r}, ${g}, ${b})`;
+    }
+}
 
 // Load settings
 async function loadSettings() {
@@ -35,10 +69,46 @@ async function loadSettings() {
         // Web settings
         const web = data.web || {};
         document.getElementById('web-host').value = web.host || '0.0.0.0';
-        document.getElementById('web-port').value = web.port || 5000;
+        document.getElementById('web-port').value = web.port || 80;
+        
+        // LED settings
+        const led = data.led || {};
+        document.getElementById('led-enabled').checked = led.enabled || false;
+        document.getElementById('led-pin').value = led.pin || 18;
+        document.getElementById('led-count').value = led.led_count || 144;
+        document.getElementById('led-brightness').value = led.brightness || 128;
+        document.getElementById('led-brightness-value').textContent = led.brightness || 128;
+        
+        // LED colors
+        const idleColor = led.idle_color || [0, 50, 255];
+        document.getElementById('led-idle-r').value = idleColor[0];
+        document.getElementById('led-idle-g').value = idleColor[1];
+        document.getElementById('led-idle-b').value = idleColor[2];
+        updateColorPreview('idle');
+        
+        const progressColor = led.progress_color || [0, 255, 0];
+        document.getElementById('led-progress-r').value = progressColor[0];
+        document.getElementById('led-progress-g').value = progressColor[1];
+        document.getElementById('led-progress-b').value = progressColor[2];
+        updateColorPreview('progress');
+        
+        const successColor = led.success_color || [0, 255, 0];
+        document.getElementById('led-success-r').value = successColor[0];
+        document.getElementById('led-success-g').value = successColor[1];
+        document.getElementById('led-success-b').value = successColor[2];
+        updateColorPreview('success');
+        
+        const errorColor = led.error_color || [255, 0, 0];
+        document.getElementById('led-error-r').value = errorColor[0];
+        document.getElementById('led-error-g').value = errorColor[1];
+        document.getElementById('led-error-b').value = errorColor[2];
+        updateColorPreview('error');
         
         // Toggle MQTT settings visibility
         document.getElementById('mqtt-settings').style.display = mqtt.enabled ? 'block' : 'none';
+        
+        // Toggle LED settings visibility
+        document.getElementById('led-settings').style.display = led.enabled ? 'block' : 'none';
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -94,6 +164,32 @@ async function saveSettings(event) {
         web: {
             host: document.getElementById('web-host').value,
             port: parseInt(document.getElementById('web-port').value)
+        },
+        led: {
+            enabled: document.getElementById('led-enabled').checked,
+            pin: parseInt(document.getElementById('led-pin').value),
+            led_count: parseInt(document.getElementById('led-count').value),
+            brightness: parseInt(document.getElementById('led-brightness').value),
+            idle_color: [
+                parseInt(document.getElementById('led-idle-r').value),
+                parseInt(document.getElementById('led-idle-g').value),
+                parseInt(document.getElementById('led-idle-b').value)
+            ],
+            progress_color: [
+                parseInt(document.getElementById('led-progress-r').value),
+                parseInt(document.getElementById('led-progress-g').value),
+                parseInt(document.getElementById('led-progress-b').value)
+            ],
+            success_color: [
+                parseInt(document.getElementById('led-success-r').value),
+                parseInt(document.getElementById('led-success-g').value),
+                parseInt(document.getElementById('led-success-b').value)
+            ],
+            error_color: [
+                parseInt(document.getElementById('led-error-r').value),
+                parseInt(document.getElementById('led-error-g').value),
+                parseInt(document.getElementById('led-error-b').value)
+            ]
         }
     };
     

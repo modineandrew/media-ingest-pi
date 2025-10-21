@@ -1,25 +1,110 @@
+# Device Configuration - Version 2
+# This file is automatically managed by Media Ingest Pi
+# You can edit it manually, but it's recommended to use the web interface
+
+version: 2
+
 devices:
-  - id: "example-device-1"
+  # Example 1: Camera with separate destinations for photos and videos
+  - id: "example-camera-1"
     name: "Camera SD Card"
     identifiers:
       uuid: "ABCD-1234"
       label: "CAMERA_SD"
       vendor: "SanDisk"
     auto_ingest: true
-    drop_location: "/mnt/nas/photos/camera"
-    file_types: [".jpg", ".jpeg", ".raw", ".dng", ".cr2", ".nef"]
-    naming_pattern: "{date}_{device}_{counter:04d}{ext}"
-    delete_after: false
     enabled: true
+    transfer_rules:
+      # Rule 1: RAW photos go to photos directory
+      - id: "rule_photos_raw"
+        name: "RAW Photos"
+        drop_location: "/mnt/nas/photos/camera/raw"
+        file_types: [".raw", ".dng", ".cr2", ".nef", ".arw"]
+        source_path_patterns: []  # Empty = all paths
+        filename_patterns: []      # Empty = all filenames
+        naming_pattern: "{date}_{device}_{counter:04d}{ext}"
+        preserve_structure: false
+        delete_after: false
+      
+      # Rule 2: JPEGs go to different directory
+      - id: "rule_photos_jpeg"
+        name: "JPEG Photos"
+        drop_location: "/mnt/nas/photos/camera/jpeg"
+        file_types: [".jpg", ".jpeg"]
+        source_path_patterns: []
+        filename_patterns: []
+        naming_pattern: "{date}_{device}_{counter:04d}{ext}"
+        preserve_structure: false
+        delete_after: false
+      
+      # Rule 3: Videos
+      - id: "rule_videos"
+        name: "Videos"
+        drop_location: "/mnt/nas/videos/camera"
+        file_types: [".mp4", ".mov", ".avi"]
+        source_path_patterns: []
+        filename_patterns: []
+        naming_pattern: "{datetime}_{original}{ext}"
+        preserve_structure: true
+        delete_after: false
   
-  - id: "example-device-2"
-    name: "Drone MicroSD"
+  # Example 2: Drone with path-based filtering
+  - id: "example-drone-1"
+    name: "Drone SD Card"
     identifiers:
       label: "DRONE"
+      vendor: "Generic"
     auto_ingest: true
-    drop_location: "/mnt/nas/videos/drone"
-    file_types: [".mp4", ".mov", ".jpg"]
-    naming_pattern: "{datetime}_{original}{ext}"
-    delete_after: false
     enabled: true
+    transfer_rules:
+      # Rule 1: Panoramas (filter by path pattern)
+      - id: "rule_panos"
+        name: "Panoramas"
+        drop_location: "/mnt/nas/photos/drone/panoramas"
+        file_types: [".jpg", ".dng"]
+        source_path_patterns: ["**/PANO/**", "**/Panorama/**"]  # Only files in PANO directories
+        filename_patterns: []
+        naming_pattern: "{date}_pano_{counter:04d}{ext}"
+        preserve_structure: false
+        delete_after: false
+      
+      # Rule 2: Regular photos (exclude panoramas)
+      - id: "rule_regular"
+        name: "Regular Photos"
+        drop_location: "/mnt/nas/photos/drone/regular"
+        file_types: [".jpg", ".dng"]
+        source_path_patterns: ["**/DCIM/**"]  # Only DCIM directory
+        filename_patterns: ["DJI_*"]          # Only files starting with DJI_
+        naming_pattern: "{original}{ext}"
+        preserve_structure: true
+        delete_after: false
+      
+      # Rule 3: Videos
+      - id: "rule_drone_videos"
+        name: "Videos"
+        drop_location: "/mnt/nas/videos/drone"
+        file_types: [".mp4", ".mov"]
+        source_path_patterns: []
+        filename_patterns: []
+        naming_pattern: "{original}{ext}"
+        preserve_structure: true
+        delete_after: false
+  
+  # Example 3: Simple single-rule device (equivalent to v1 format)
+  - id: "example-simple-1"
+    name: "Phone Backup"
+    identifiers:
+      label: "PHONE"
+    auto_ingest: true
+    enabled: true
+    transfer_rules:
+      - id: "rule_default"
+        name: "All Files"
+        drop_location: "/mnt/nas/phone-backup"
+        file_types: ["*"]  # All files
+        source_path_patterns: []
+        filename_patterns: []
+        naming_pattern: "{original}{ext}"
+        preserve_structure: true
+        delete_after: false
 

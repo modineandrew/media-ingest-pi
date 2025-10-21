@@ -3,8 +3,10 @@
 import os
 import yaml
 import threading
+import uuid
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+from .migration import ConfigMigration
 
 
 class ConfigManager:
@@ -29,6 +31,9 @@ class ConfigManager:
         self._settings: Dict = {}
         self._lock = threading.RLock()
         
+        # Initialize migration system
+        self.migration = ConfigMigration(self.config_dir)
+        
         # Ensure config directory exists
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
@@ -51,12 +56,32 @@ class ConfigManager:
                 if self.devices_file.exists():
                     with open(self.devices_file, 'r') as f:
                         data = yaml.safe_load(f)
+                        
+                        # Check if migration is needed
+                        if self.migration.needs_migration(data, 'devices'):
+                            current_version = self.migration.get_config_version(data, 'devices')
+                            print(f"⚠ Devices config requires migration from v{current_version}")
+                            
+                            # Backup current config
+                            self.migration.backup_config(self.devices_file, current_version)
+                            
+                            # Migrate
+                            data = self.migration.migrate_devices(data)
+                            
+                            # Save migrated config
+                            with open(self.devices_file, 'w') as fw:
+                                yaml.safe_dump(data, fw, default_flow_style=False)
+                            
+                            print(f"✓ Devices config migrated to v{self.migration.CURRENT_VERSION}")
+                        
                         self._devices = data.get('devices', []) if data else []
                 else:
                     self._devices = []
                     self.save_devices()  # Create empty file
             except Exception as e:
                 print(f"Error loading devices: {e}")
+                import traceback
+                traceback.print_exc()
                 self._devices = []
             
             return self._devices.copy()
@@ -72,6 +97,24 @@ class ConfigManager:
                 if self.settings_file.exists():
                     with open(self.settings_file, 'r') as f:
                         data = yaml.safe_load(f)
+                        
+                        # Check if migration is needed
+                        if self.migration.needs_migration(data, 'settings'):
+                            current_version = self.migration.get_config_version(data, 'settings')
+                            print(f"⚠ Settings config requires migration from v{current_version}")
+                            
+                            # Backup current config
+                            self.migration.backup_config(self.settings_file, current_version)
+                            
+                            # Migrate
+                            data = self.migration.migrate_settings(data)
+                            
+                            # Save migrated config
+                            with open(self.settings_file, 'w') as fw:
+                                yaml.safe_dump(data, fw, default_flow_style=False)
+                            
+                            print(f"✓ Settings config migrated to v{self.migration.CURRENT_VERSION}")
+                        
                         self._settings = data.get('settings', {}) if data else {}
                 else:
                     # Create default settings
@@ -79,6 +122,8 @@ class ConfigManager:
                     self.save_settings()
             except Exception as e:
                 print(f"Error loading settings: {e}")
+                import traceback
+                traceback.print_exc()
                 self._settings = self._get_default_settings()
             
             return self._settings.copy()
@@ -88,7 +133,10 @@ class ConfigManager:
         with self._lock:
             try:
                 with open(self.devices_file, 'w') as f:
-                    yaml.safe_dump({'devices': self._devices}, f, default_flow_style=False)
+                    yaml.safe_dump({
+                        'version': self.migration.CURRENT_VERSION,
+                        'devices': self._devices
+                    }, f, default_flow_style=False)
             except Exception as e:
                 print(f"Error saving devices: {e}")
     
@@ -97,7 +145,10 @@ class ConfigManager:
         with self._lock:
             try:
                 with open(self.settings_file, 'w') as f:
-                    yaml.safe_dump({'settings': self._settings}, f, default_flow_style=False)
+                    yaml.safe_dump({
+                        'version': self.migration.CURRENT_VERSION,
+                        'settings': self._settings
+                    }, f, default_flow_style=False)
             except Exception as e:
                 print(f"Error saving settings: {e}")
     
@@ -194,18 +245,108 @@ class ConfigManager:
                 
                 identifiers = device.get('identifiers', {})
                 
-                # Check each identifier
-                matched = False
+                # Skip if no identifiers configured
+                if not identifiers:
+                    continue
+                
+                # Check if ALL identifiers match (not just any one)
+                all_matched = True
                 for key, value in identifiers.items():
                     device_value = device_info.get(key)
-                    if device_value and str(device_value).lower() == str(value).lower():
-                        matched = True
+                    # If identifier is not present or doesn't match, this device doesn't match
+                    if not device_value or str(device_value).lower() != str(value).lower():
+                        all_matched = False
                         break
                 
-                if matched:
+                # Only return if ALL identifiers matched
+                if all_matched:
                     return device.copy()
             
             return None
+    
+    def get_device_transfer_rules(self, device_id: str) -> List[Dict]:
+        """Get all transfer rules for a device.
+        
+        Args:
+            device_id: Device unique identifier.
+            
+        Returns:
+            List of transfer rule dictionaries.
+        """
+        device = self.get_device(device_id)
+        if device:
+            return device.get('transfer_rules', [])
+        return []
+    
+    def add_transfer_rule(self, device_id: str, rule: Dict) -> bool:
+        """Add a transfer rule to a device.
+        
+        Args:
+            device_id: Device unique identifier.
+            rule: Transfer rule dictionary.
+            
+        Returns:
+            True if successful, False if device not found.
+        """
+        with self._lock:
+            for device in self._devices:
+                if device.get('id') == device_id:
+                    if 'transfer_rules' not in device:
+                        device['transfer_rules'] = []
+                    
+                    # Generate ID if not provided
+                    if 'id' not in rule:
+                        rule['id'] = f"rule_{uuid.uuid4().hex[:12]}"
+                    
+                    device['transfer_rules'].append(rule)
+                    self.save_devices()
+                    return True
+            return False
+    
+    def update_transfer_rule(self, device_id: str, rule_id: str, updates: Dict) -> bool:
+        """Update a transfer rule in a device.
+        
+        Args:
+            device_id: Device unique identifier.
+            rule_id: Transfer rule unique identifier.
+            updates: Dictionary of fields to update.
+            
+        Returns:
+            True if successful, False if device or rule not found.
+        """
+        with self._lock:
+            for device in self._devices:
+                if device.get('id') == device_id:
+                    rules = device.get('transfer_rules', [])
+                    for i, rule in enumerate(rules):
+                        if rule.get('id') == rule_id:
+                            rules[i].update(updates)
+                            self.save_devices()
+                            return True
+                    return False
+            return False
+    
+    def delete_transfer_rule(self, device_id: str, rule_id: str) -> bool:
+        """Delete a transfer rule from a device.
+        
+        Args:
+            device_id: Device unique identifier.
+            rule_id: Transfer rule unique identifier.
+            
+        Returns:
+            True if successful, False if device or rule not found.
+        """
+        with self._lock:
+            for device in self._devices:
+                if device.get('id') == device_id:
+                    rules = device.get('transfer_rules', [])
+                    for i, rule in enumerate(rules):
+                        if rule.get('id') == rule_id:
+                            rules.pop(i)
+                            self.save_devices()
+                            return True
+                    return False
+            return False
     
     def get_settings(self) -> Dict:
         """Get global settings.
@@ -261,8 +402,18 @@ class ConfigManager:
                 'concurrent_transfers': 1
             },
             'web': {
-                'port': 5000,
+                'port': 80,
                 'host': '0.0.0.0'
+            },
+            'led': {
+                'enabled': False,
+                'pin': 18,
+                'led_count': 144,
+                'brightness': 128,
+                'idle_color': [0, 50, 255],
+                'progress_color': [0, 255, 0],
+                'success_color': [0, 255, 0],
+                'error_color': [255, 0, 0]
             }
         }
 

@@ -41,10 +41,12 @@ nohup.out
 .DS_Store
 Thumbs.db
 
-# Media files (if testing)
+# Media files (if testing) - but allow screenshots
 *.jpg
 *.jpeg
 *.png
+!screenshots/*.png
+!screenshots/*.jpg
 *.mp4
 *.mov
 *.avi

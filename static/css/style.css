@@ -209,6 +209,50 @@ main {
     margin-right: 0.5rem;
 }
 
+/* Range Input */
+.form-range {
+    width: calc(100% - 60px);
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    vertical-align: middle;
+    margin-right: 1rem;
+}
+
+.form-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.form-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.form-range::-webkit-slider-runnable-track {
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.form-range::-moz-range-track {
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
 /* Progress Bar */
 .progress {
     height: 8px;

@@ -80,6 +80,14 @@ class DatabaseManager:
                 cursor.execute('ALTER TABLE transfers ADD COLUMN files_skipped INTEGER DEFAULT 0')
                 print("Added files_skipped column to transfers table")
             
+            # Migration: Add rule_id and rule_name columns if they don't exist
+            if 'rule_id' not in columns:
+                cursor.execute('ALTER TABLE transfers ADD COLUMN rule_id TEXT')
+                print("Added rule_id column to transfers table")
+            if 'rule_name' not in columns:
+                cursor.execute('ALTER TABLE transfers ADD COLUMN rule_name TEXT')
+                print("Added rule_name column to transfers table")
+            
             # Create indexes
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_transfers_device ON transfers(device_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_transfers_status ON transfers(status)')
@@ -118,8 +126,9 @@ class DatabaseManager:
             cursor.execute('''
                 INSERT INTO transfers (
                     transfer_id, device_id, device_name, status, started_at,
-                    source_path, drop_location, total_files, total_size_bytes, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    source_path, drop_location, total_files, total_size_bytes, metadata,
+                    rule_id, rule_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 transfer_id,
                 transfer_data['device_id'],
@@ -130,7 +139,9 @@ class DatabaseManager:
                 transfer_data.get('drop_location', ''),
                 transfer_data.get('total_files', 0),
                 transfer_data.get('total_size_bytes', 0),
-                metadata
+                metadata,
+                transfer_data.get('rule_id', ''),
+                transfer_data.get('rule_name', '')
             ))
             
             conn.commit()

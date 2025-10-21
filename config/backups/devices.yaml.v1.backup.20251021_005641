@@ -1,0 +1,27 @@
+devices:
+- auto_ingest: true
+  delete_after: false
+  drop_location: /mnt/nas/dwarf
+  enabled: true
+  file_types:
+  - '*'
+  id: device_f95cc9d5cff5
+  identifiers:
+    uuid: 3274-4002
+    vendor: Linux
+  name: Dwarf 3
+  naming_pattern: '{original}'
+  preserve_structure: true
+- auto_ingest: true
+  delete_after: false
+  drop_location: /mnt/nas/test
+  enabled: true
+  file_types: []
+  id: device_6ed3ba7c718f
+  identifiers:
+    label: SD_Card
+    uuid: 7F76-FE4F
+    vendor: Linux
+  name: Anzu Raptor
+  naming_pattern: '{original}'
+  preserve_structure: true

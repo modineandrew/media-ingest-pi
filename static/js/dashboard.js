@@ -117,13 +117,8 @@ async function loadMountedDevices() {
         }
         
         container.innerHTML = data.devices.map(device => {
-            // Find matching profile
-            const profile = devicesData.devices.find(p => {
-                const identifiers = p.identifiers || {};
-                return (identifiers.uuid && identifiers.uuid === device.uuid) ||
-                       (identifiers.label && identifiers.label === device.label) ||
-                       (identifiers.vendor && identifiers.vendor === device.vendor);
-            });
+            // Backend provides the matched profile (single source of truth)
+            const profile = device.matched_profile;
             
             return `
                 <div class="card mb-2">

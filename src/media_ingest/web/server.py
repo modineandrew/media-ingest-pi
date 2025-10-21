@@ -89,8 +89,28 @@ class WebServer:
             # Set defaults
             data.setdefault('enabled', True)
             data.setdefault('auto_ingest', True)
-            data.setdefault('delete_after', False)
             data.setdefault('identifiers', {})
+            
+            # Ensure transfer_rules exists (v2 format)
+            if 'transfer_rules' not in data:
+                # Create a default transfer rule if none provided
+                data['transfer_rules'] = [{
+                    'id': f"rule_{uuid.uuid4().hex[:12]}",
+                    'name': 'Default Transfer',
+                    'drop_location': data.get('drop_location', ''),
+                    'file_types': data.get('file_types', []),
+                    'source_path_patterns': [],
+                    'filename_patterns': [],
+                    'naming_pattern': data.get('naming_pattern', '{original}{ext}'),
+                    'preserve_structure': data.get('preserve_structure', True),
+                    'delete_after': data.get('delete_after', False)
+                }]
+            
+            # Remove legacy fields if they exist (they're now in transfer_rules)
+            legacy_fields = ['drop_location', 'file_types', 'naming_pattern', 
+                           'preserve_structure', 'delete_after']
+            for field in legacy_fields:
+                data.pop(field, None)
             
             success = self.config_manager.add_device(data)
             if success:
@@ -116,6 +136,50 @@ class WebServer:
             if success:
                 return jsonify({'success': True})
             return jsonify({'error': 'Device not found'}), 404
+        
+        # API: Transfer Rules
+        @self.app.route('/api/devices/<device_id>/transfer-rules', methods=['GET'])
+        def get_transfer_rules(device_id):
+            rules = self.config_manager.get_device_transfer_rules(device_id)
+            return jsonify({'transfer_rules': rules})
+        
+        @self.app.route('/api/devices/<device_id>/transfer-rules', methods=['POST'])
+        def add_transfer_rule(device_id):
+            data = request.json
+            
+            # Generate ID if not provided
+            if 'id' not in data:
+                data['id'] = f"rule_{uuid.uuid4().hex[:12]}"
+            
+            # Set defaults
+            data.setdefault('name', 'New Transfer Rule')
+            data.setdefault('drop_location', '')
+            data.setdefault('file_types', [])
+            data.setdefault('source_path_patterns', [])
+            data.setdefault('filename_patterns', [])
+            data.setdefault('naming_pattern', '{original}{ext}')
+            data.setdefault('preserve_structure', True)
+            data.setdefault('delete_after', False)
+            
+            success = self.config_manager.add_transfer_rule(device_id, data)
+            if success:
+                return jsonify(data), 201
+            return jsonify({'error': 'Device not found'}), 404
+        
+        @self.app.route('/api/devices/<device_id>/transfer-rules/<rule_id>', methods=['PUT'])
+        def update_transfer_rule(device_id, rule_id):
+            data = request.json
+            success = self.config_manager.update_transfer_rule(device_id, rule_id, data)
+            if success:
+                return jsonify({'success': True})
+            return jsonify({'error': 'Device or rule not found'}), 404
+        
+        @self.app.route('/api/devices/<device_id>/transfer-rules/<rule_id>', methods=['DELETE'])
+        def delete_transfer_rule(device_id, rule_id):
+            success = self.config_manager.delete_transfer_rule(device_id, rule_id)
+            if success:
+                return jsonify({'success': True})
+            return jsonify({'error': 'Device or rule not found'}), 404
         
         # API: Settings
         @self.app.route('/api/settings', methods=['GET'])
@@ -186,6 +250,20 @@ class WebServer:
         @self.app.route('/api/mounted-devices', methods=['GET'])
         def get_mounted_devices():
             devices = self.device_monitor.get_mounted_devices()
+            
+            # Add matched profile info to each device (backend handles matching logic)
+            for device in devices:
+                profile = self.config_manager.find_device_by_identifiers(device)
+                if profile:
+                    device['matched_profile'] = {
+                        'id': profile['id'],
+                        'name': profile['name'],
+                        'auto_ingest': profile.get('auto_ingest', False),
+                        'enabled': profile.get('enabled', True)
+                    }
+                else:
+                    device['matched_profile'] = None
+            
             return jsonify({'devices': devices})
         
         # API: Manual trigger
@@ -194,6 +272,7 @@ class WebServer:
             data = request.json
             device_id = data.get('device_id')
             device_node = data.get('device_node')
+            rule_id = data.get('rule_id')  # Optional: specific rule to execute
             
             if not device_id or not device_node:
                 return jsonify({'error': 'Missing device_id or device_node'}), 400
@@ -208,10 +287,68 @@ class WebServer:
             if not device_info:
                 return jsonify({'error': 'Device not mounted'}), 404
             
-            # Queue transfer
-            transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info)
+            # Get transfer rules
+            transfer_rules = device_profile.get('transfer_rules', [])
             
-            return jsonify({'transfer_id': transfer_id, 'success': True})
+            if rule_id:
+                # Queue specific rule only
+                rule = next((r for r in transfer_rules if r.get('id') == rule_id), None)
+                if not rule:
+                    return jsonify({'error': 'Rule not found'}), 404
+                
+                transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info, rule=rule)
+                
+                # Create database record
+                self.database_manager.create_transfer({
+                    'transfer_id': transfer_id,
+                    'device_id': device_profile['id'],
+                    'device_name': device_profile['name'],
+                    'rule_id': rule.get('id', ''),
+                    'rule_name': rule.get('name', ''),
+                    'status': 'queued',
+                    'source_path': device_info.get('mount_point', ''),
+                    'drop_location': rule.get('drop_location', '')
+                })
+                
+                return jsonify({'transfer_id': transfer_id, 'success': True})
+            
+            elif transfer_rules:
+                # Queue all rules
+                transfer_ids = []
+                for rule in transfer_rules:
+                    transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info, rule=rule)
+                    
+                    # Create database record
+                    self.database_manager.create_transfer({
+                        'transfer_id': transfer_id,
+                        'device_id': device_profile['id'],
+                        'device_name': device_profile['name'],
+                        'rule_id': rule.get('id', ''),
+                        'rule_name': rule.get('name', ''),
+                        'status': 'queued',
+                        'source_path': device_info.get('mount_point', ''),
+                        'drop_location': rule.get('drop_location', '')
+                    })
+                    
+                    transfer_ids.append(transfer_id)
+                
+                return jsonify({'transfer_ids': transfer_ids, 'success': True})
+            
+            else:
+                # V1 fallback: Queue single transfer with device-level settings
+                transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info)
+                
+                # Create database record
+                self.database_manager.create_transfer({
+                    'transfer_id': transfer_id,
+                    'device_id': device_profile['id'],
+                    'device_name': device_profile['name'],
+                    'status': 'queued',
+                    'source_path': device_info.get('mount_point', ''),
+                    'drop_location': device_profile.get('drop_location', '')
+                })
+                
+                return jsonify({'transfer_id': transfer_id, 'success': True})
         
         # API: Statistics
         @self.app.route('/api/statistics', methods=['GET'])
@@ -299,7 +436,7 @@ class WebServer:
         if host is None:
             host = self.settings.get('web', {}).get('host', '0.0.0.0')
         if port is None:
-            port = self.settings.get('web', {}).get('port', 5000)
+            port = self.settings.get('web', {}).get('port', 80)
         
         print(f"Starting web server on {host}:{port}")
         self.socketio.run(self.app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)

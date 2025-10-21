@@ -1,0 +1,37 @@
+settings:
+  defaults:
+    concurrent_transfers: 4
+    drop_location: /tmp/nas
+    temp_dir: /tmp/media_ingest
+    verify_checksums: true
+  led:
+    brightness: 80
+    enabled: true
+    error_color:
+    - 255
+    - 0
+    - 0
+    idle_color:
+    - 0
+    - 50
+    - 255
+    led_count: 10
+    pin: 18
+    progress_color:
+    - 0
+    - 255
+    - 0
+    success_color:
+    - 0
+    - 255
+    - 0
+  mqtt:
+    base_topic: homeassistant/media_ingest
+    broker: homeassistant.local
+    enabled: true
+    password: 1UarOPrdigf0D3vs
+    port: 1883
+    username: media-ingest-pi
+  web:
+    host: 0.0.0.0
+    port: 80

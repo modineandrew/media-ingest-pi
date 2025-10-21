@@ -15,6 +15,7 @@ from media_ingest.core.device_monitor import DeviceMonitor
 from media_ingest.core.transfer import FileTransferWorker
 from media_ingest.mqtt.client import MQTTClient
 from media_ingest.web.server import WebServer
+from media_ingest.led import LEDController
 
 
 class MediaIngestService:
@@ -36,13 +37,22 @@ class MediaIngestService:
         # Get settings
         self.settings = self.config_manager.get_settings()
         
+        print("Initializing LED controller...")
+        led_settings = self.settings.get('led', {})
+        self.led_controller = LEDController(led_settings)
+        if self.led_controller.enabled:
+            print("✓ LED strip initialized")
+        else:
+            print("LED strip disabled or not available")
+        
         print("Initializing MQTT client...")
         self.mqtt_client = MQTTClient(self.settings)
         
         print("Initializing transfer worker...")
         self.transfer_worker = FileTransferWorker(
             self.settings,
-            progress_callback=self._on_transfer_progress
+            progress_callback=self._on_transfer_progress,
+            led_controller=self.led_controller
         )
         
         print("Initializing device monitor...")
@@ -98,7 +108,7 @@ class MediaIngestService:
         # Start web server
         print("Starting web server...")
         web_host = self.settings.get('web', {}).get('host', '0.0.0.0')
-        web_port = self.settings.get('web', {}).get('port', 5000)
+        web_port = self.settings.get('web', {}).get('port', 80)
         print(f"✓ Web server started on http://{web_host}:{web_port}")
         
         print("\n" + "=" * 60)
@@ -141,6 +151,11 @@ class MediaIngestService:
         if self.mqtt_client:
             print("Disconnecting MQTT...")
             self.mqtt_client.disconnect()
+        
+        # Shutdown LED controller
+        if self.led_controller and self.led_controller.enabled:
+            print("Shutting down LED controller...")
+            self.led_controller.shutdown()
         
         print("Shutdown complete. Goodbye!")
     
@@ -191,18 +206,44 @@ class MediaIngestService:
             if device_profile.get('auto_ingest', False):
                 print(f"   → Auto-ingest enabled - queueing transfer...")
                 try:
-                    transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info)
+                    # Check if device has transfer rules (v2) or uses legacy format (v1)
+                    transfer_rules = device_profile.get('transfer_rules', [])
                     
-                    # Create database record
-                    self.database_manager.create_transfer({
-                        'transfer_id': transfer_id,
-                        'device_id': device_profile['id'],
-                        'device_name': device_profile['name'],
-                        'status': 'queued',
-                        'source_path': device_info.get('mount_point', ''),
-                        'drop_location': device_profile.get('drop_location', '')
-                    })
-                    print(f"   ✓ Transfer queued: {transfer_id}")
+                    if transfer_rules:
+                        # V2: Queue a transfer for each rule
+                        print(f"   Found {len(transfer_rules)} transfer rules")
+                        for rule in transfer_rules:
+                            transfer_id = self.transfer_worker.queue_transfer(
+                                device_profile, device_info, rule=rule
+                            )
+                            
+                            # Create database record
+                            self.database_manager.create_transfer({
+                                'transfer_id': transfer_id,
+                                'device_id': device_profile['id'],
+                                'device_name': device_profile['name'],
+                                'rule_id': rule.get('id', ''),
+                                'rule_name': rule.get('name', ''),
+                                'status': 'queued',
+                                'source_path': device_info.get('mount_point', ''),
+                                'drop_location': rule.get('drop_location', '')
+                            })
+                            print(f"   ✓ Transfer queued: {transfer_id} (rule: {rule.get('name', 'unnamed')})")
+                    else:
+                        # V1 fallback: Single transfer with device-level settings
+                        transfer_id = self.transfer_worker.queue_transfer(device_profile, device_info)
+                        
+                        # Create database record
+                        self.database_manager.create_transfer({
+                            'transfer_id': transfer_id,
+                            'device_id': device_profile['id'],
+                            'device_name': device_profile['name'],
+                            'status': 'queued',
+                            'source_path': device_info.get('mount_point', ''),
+                            'drop_location': device_profile.get('drop_location', '')
+                        })
+                        print(f"   ✓ Transfer queued: {transfer_id}")
+                        
                 except Exception as e:
                     print(f"   ✗ Error queuing transfer: {e}")
                     import traceback

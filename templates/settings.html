@@ -92,7 +92,87 @@
         
         <div class="form-group">
             <label class="form-label">Port</label>
-            <input type="number" id="web-port" class="form-input" value="5000">
+            <input type="number" id="web-port" class="form-input" value="80">
+        </div>
+    </div>
+    
+    <!-- LED Strip Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">🎨 LED Strip Progress Indicator</h2>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">
+                <input type="checkbox" id="led-enabled" class="form-checkbox">
+                Enable LED Strip (WS2812B)
+            </label>
+            <p style="color: #888; font-size: 0.9em; margin-top: 0.5em;">
+                Display transfer progress on an addressable LED strip
+            </p>
+        </div>
+        
+        <div id="led-settings">
+            <div class="form-group">
+                <label class="form-label">GPIO Pin (BCM)</label>
+                <input type="number" id="led-pin" class="form-input" value="18" min="0" max="27">
+                <p style="color: #888; font-size: 0.85em; margin-top: 0.3em;">
+                    GPIO pin using BCM numbering (default: 18, physical pin 12)
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Number of LEDs</label>
+                <input type="number" id="led-count" class="form-input" value="144" min="1" max="1000">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Brightness (0-255)</label>
+                <input type="range" id="led-brightness" class="form-range" min="0" max="255" value="128">
+                <span id="led-brightness-value">128</span>
+            </div>
+            
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">Idle Color (RGB)</label>
+                    <div style="display: flex; gap: 0.5em;">
+                        <input type="number" id="led-idle-r" class="form-input" placeholder="R" min="0" max="255" value="0" style="width: 33%;">
+                        <input type="number" id="led-idle-g" class="form-input" placeholder="G" min="0" max="255" value="50" style="width: 33%;">
+                        <input type="number" id="led-idle-b" class="form-input" placeholder="B" min="0" max="255" value="255" style="width: 33%;">
+                    </div>
+                    <div id="led-idle-preview" style="width: 100%; height: 20px; margin-top: 0.5em; border-radius: 4px; background: rgb(0, 50, 255);"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Progress Color (RGB)</label>
+                    <div style="display: flex; gap: 0.5em;">
+                        <input type="number" id="led-progress-r" class="form-input" placeholder="R" min="0" max="255" value="0" style="width: 33%;">
+                        <input type="number" id="led-progress-g" class="form-input" placeholder="G" min="0" max="255" value="255" style="width: 33%;">
+                        <input type="number" id="led-progress-b" class="form-input" placeholder="B" min="0" max="255" value="0" style="width: 33%;">
+                    </div>
+                    <div id="led-progress-preview" style="width: 100%; height: 20px; margin-top: 0.5em; border-radius: 4px; background: rgb(0, 255, 0);"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Success Color (RGB)</label>
+                    <div style="display: flex; gap: 0.5em;">
+                        <input type="number" id="led-success-r" class="form-input" placeholder="R" min="0" max="255" value="0" style="width: 33%;">
+                        <input type="number" id="led-success-g" class="form-input" placeholder="G" min="0" max="255" value="255" style="width: 33%;">
+                        <input type="number" id="led-success-b" class="form-input" placeholder="B" min="0" max="255" value="0" style="width: 33%;">
+                    </div>
+                    <div id="led-success-preview" style="width: 100%; height: 20px; margin-top: 0.5em; border-radius: 4px; background: rgb(0, 255, 0);"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Error Color (RGB)</label>
+                    <div style="display: flex; gap: 0.5em;">
+                        <input type="number" id="led-error-r" class="form-input" placeholder="R" min="0" max="255" value="255" style="width: 33%;">
+                        <input type="number" id="led-error-g" class="form-input" placeholder="G" min="0" max="255" value="0" style="width: 33%;">
+                        <input type="number" id="led-error-b" class="form-input" placeholder="B" min="0" max="255" value="0" style="width: 33%;">
+                    </div>
+                    <div id="led-error-preview" style="width: 100%; height: 20px; margin-top: 0.5em; border-radius: 4px; background: rgb(255, 0, 0);"></div>
+                </div>
+            </div>
         </div>
     </div>
     

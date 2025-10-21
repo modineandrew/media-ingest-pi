@@ -7,6 +7,7 @@ import threading
 import queue
 import uuid
 import re
+import fnmatch
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Any
@@ -16,15 +17,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class FileTransferWorker:
     """Handles file transfer operations with progress tracking."""
     
-    def __init__(self, settings: Dict, progress_callback: Callable = None):
+    def __init__(self, settings: Dict, progress_callback: Callable = None, led_controller=None):
         """Initialize file transfer worker.
         
         Args:
             settings: Global settings dictionary.
             progress_callback: Callback for progress updates.
+            led_controller: Optional LED controller for visual progress indication.
         """
         self.settings = settings
         self.progress_callback = progress_callback
+        self.led_controller = led_controller
         
         self._transfer_queue = queue.Queue()
         self._active_transfers: Dict[str, Dict] = {}
@@ -72,16 +75,18 @@ class FileTransferWorker:
         print("Transfer workers stopped")
     
     def queue_transfer(self, device_profile: Dict, device_info: Dict, 
-                       transfer_id: str = None) -> str:
+                       transfer_id: str = None, rule: Dict = None) -> str:
         """Queue a new transfer job.
         
         Args:
             device_profile: Device configuration profile.
             device_info: Device hardware information.
             transfer_id: Optional transfer ID (generated if not provided).
+            rule: Optional specific transfer rule. If None and device has multiple rules,
+                  a separate transfer will be queued for each rule.
             
         Returns:
-            Transfer ID.
+            Transfer ID (or first transfer ID if multiple queued).
         """
         if transfer_id is None:
             transfer_id = f"transfer_{uuid.uuid4().hex[:12]}"
@@ -90,12 +95,15 @@ class FileTransferWorker:
             'transfer_id': transfer_id,
             'device_profile': device_profile,
             'device_info': device_info,
+            'rule': rule,  # Specific rule for this transfer
             'status': 'queued',
             'queued_at': datetime.now().isoformat()
         }
         
         self._transfer_queue.put(transfer_job)
-        print(f"Transfer queued: {transfer_id} for device {device_profile['name']}")
+        
+        rule_name = rule['name'] if rule else 'default'
+        print(f"Transfer queued: {transfer_id} for device {device_profile['name']} (rule: {rule_name})")
         
         return transfer_id
     
@@ -141,6 +149,7 @@ class FileTransferWorker:
         transfer_id = transfer_job['transfer_id']
         device_profile = transfer_job['device_profile']
         device_info = transfer_job['device_info']
+        rule = transfer_job.get('rule')  # Specific transfer rule (v2) or None (v1 fallback)
         
         # Mark as active
         start_time = datetime.now()
@@ -149,6 +158,8 @@ class FileTransferWorker:
                 'transfer_id': transfer_id,
                 'device_id': device_profile['id'],
                 'device_name': device_profile['name'],
+                'rule_id': rule['id'] if rule else '',
+                'rule_name': rule['name'] if rule else '',
                 'status': 'in_progress',
                 'started_at': start_time.isoformat(),
                 'start_timestamp': start_time.timestamp(),
@@ -164,20 +175,37 @@ class FileTransferWorker:
             }
         
         try:
-            # Prepare drop location first (needed for scanning)
-            drop_location = device_profile.get('drop_location') or \
-                          self.settings.get('defaults', {}).get('drop_location')
+            # Get settings from rule (v2) or device profile (v1 fallback)
+            if rule:
+                # V2: Use rule-specific settings
+                drop_location = rule.get('drop_location') or \
+                              self.settings.get('defaults', {}).get('drop_location')
+                file_types = rule.get('file_types', [])
+                source_path_patterns = rule.get('source_path_patterns', [])
+                filename_patterns = rule.get('filename_patterns', [])
+                preserve_structure = rule.get('preserve_structure', True)
+            else:
+                # V1 fallback: Use device-level settings
+                drop_location = device_profile.get('drop_location') or \
+                              self.settings.get('defaults', {}).get('drop_location')
+                file_types = device_profile.get('file_types', [])
+                source_path_patterns = []
+                filename_patterns = []
+                preserve_structure = device_profile.get('preserve_structure', True)
+            
             drop_path = Path(drop_location)
-            preserve_structure = device_profile.get('preserve_structure', True)
             
             # Scan for files to transfer (excluding files that already exist)
             source_path = device_info['mount_point']
-            print(f"Scanning for files in {source_path}...")
+            rule_info = f" (rule: {rule['name']})" if rule else ""
+            print(f"Scanning for files in {source_path}{rule_info}...")
             file_list = self._scan_files(
                 source_path, 
-                device_profile.get('file_types', []),
+                file_types,
                 drop_path,
-                preserve_structure
+                preserve_structure,
+                source_path_patterns,
+                filename_patterns
             )
             print(f"Found {len(file_list)} files to transfer")
             
@@ -196,9 +224,16 @@ class FileTransferWorker:
                                         total_size_bytes=total_size)
             drop_path.mkdir(parents=True, exist_ok=True)
             
+            # Show initial progress on LED strip
+            if self.led_controller:
+                self.led_controller.show_progress(0)
+            
             # Transfer files with multithreading
-            naming_pattern = device_profile.get('naming_pattern', '{original}{ext}')
-            preserve_structure = device_profile.get('preserve_structure', True)
+            # Get naming pattern from rule or device
+            if rule:
+                naming_pattern = rule.get('naming_pattern', '{original}{ext}')
+            else:
+                naming_pattern = device_profile.get('naming_pattern', '{original}{ext}')
             
             # Get thread pool size from settings (default to 4 concurrent copies)
             max_workers = self.settings.get('defaults', {}).get('concurrent_transfers', 4)
@@ -224,7 +259,8 @@ class FileTransferWorker:
                         preserve_structure,
                         naming_pattern,
                         idx,
-                        device_profile
+                        device_profile,
+                        rule
                     )
                     future_to_file[future] = file_info
                 
@@ -263,6 +299,10 @@ class FileTransferWorker:
                     bytes_per_second = transfer['bytes_transferred'] / duration
                     transfer['transfer_speed_mbps'] = round(bytes_per_second / (1024 * 1024), 2)
             
+            # Show success on LED strip
+            if self.led_controller:
+                self.led_controller.show_success()
+            
             self._send_progress_update(transfer_id)
             
             transferred_mb = transfer['bytes_transferred'] / (1024 * 1024)
@@ -277,13 +317,20 @@ class FileTransferWorker:
         except Exception as e:
             print(f"Transfer {transfer_id} failed: {e}")
             self._update_transfer_status(transfer_id, 'failed', error=str(e))
+            
+            # Show error on LED strip
+            if self.led_controller:
+                self.led_controller.show_error()
+            
             self._send_progress_update(transfer_id)
         
         finally:
             # Remove from active after a delay to allow final status reads
             threading.Timer(5.0, lambda: self._remove_active_transfer(transfer_id)).start()
     
-    def _scan_files(self, source_path: str, file_types: List[str], drop_path: Path = None, preserve_structure: bool = True) -> List[Dict]:
+    def _scan_files(self, source_path: str, file_types: List[str], drop_path: Path = None, 
+                    preserve_structure: bool = True, source_path_patterns: List[str] = None,
+                    filename_patterns: List[str] = None) -> List[Dict]:
         """Scan source directory for matching files that need to be transferred.
         
         Args:
@@ -291,6 +338,8 @@ class FileTransferWorker:
             file_types: List of file extensions to include (e.g., ['.jpg', '.mp4']). Use ['*'] for all files.
             drop_path: Destination directory path (for checking if files already exist).
             preserve_structure: Whether directory structure is preserved.
+            source_path_patterns: List of glob patterns for source paths (e.g., ['**/DCIM/**']).
+            filename_patterns: List of glob patterns for filenames (e.g., ['*_PANO_*']).
             
         Returns:
             List of file information dictionaries (excluding files that already exist).
@@ -298,7 +347,13 @@ class FileTransferWorker:
         files = []
         skipped_count = 0
         source = Path(source_path)
+        
+        # Print filter info
         print(f"  File types filter: {file_types if file_types else 'ALL'}")
+        if source_path_patterns:
+            print(f"  Source path patterns: {source_path_patterns}")
+        if filename_patterns:
+            print(f"  Filename patterns: {filename_patterns}")
         
         # Handle wildcard - '*' means all files
         if not file_types or '*' in file_types:
@@ -324,6 +379,29 @@ class FileTransferWorker:
                 # Check extension filter
                 if extensions and file_path.suffix.lower() not in extensions:
                     continue
+                
+                # Check source path patterns (if specified)
+                if source_path_patterns:
+                    relative_path = file_path.relative_to(source)
+                    path_matches = False
+                    for pattern in source_path_patterns:
+                        if fnmatch.fnmatch(str(relative_path), pattern) or \
+                           fnmatch.fnmatch(str(relative_path.parent), pattern) or \
+                           fnmatch.fnmatch(str(relative_path), f"**/{pattern}"):
+                            path_matches = True
+                            break
+                    if not path_matches:
+                        continue
+                
+                # Check filename patterns (if specified)
+                if filename_patterns:
+                    filename_matches = False
+                    for pattern in filename_patterns:
+                        if fnmatch.fnmatch(filename, pattern):
+                            filename_matches = True
+                            break
+                    if not filename_matches:
+                        continue
                 
                 try:
                     stat = file_path.stat()
@@ -365,7 +443,7 @@ class FileTransferWorker:
     
     def _copy_single_file(self, transfer_id: str, file_info: Dict, drop_path: Path, 
                           preserve_structure: bool, naming_pattern: str, counter: int, 
-                          device_profile: Dict) -> bool:
+                          device_profile: Dict, rule: Dict = None) -> bool:
         """Copy a single file (called by thread pool).
         
         Args:
@@ -376,6 +454,7 @@ class FileTransferWorker:
             naming_pattern: File naming pattern.
             counter: File counter for naming.
             device_profile: Device profile configuration.
+            rule: Optional transfer rule (for v2 configs).
             
         Returns:
             True if successful, False otherwise.
@@ -431,8 +510,17 @@ class FileTransferWorker:
                 # Send progress update
                 self._send_progress_update(transfer_id)
                 
-                # Delete source file if configured
-                if device_profile.get('delete_after', False):
+                # Update LED strip progress
+                if self.led_controller:
+                    with self._lock:
+                        transfer = self._active_transfers.get(transfer_id)
+                        if transfer and transfer['total_files'] > 0:
+                            progress_percent = (transfer['files_transferred'] / transfer['total_files']) * 100
+                            self.led_controller.show_progress(progress_percent)
+                
+                # Delete source file if configured (check rule first, then device profile)
+                delete_after = rule.get('delete_after', False) if rule else device_profile.get('delete_after', False)
+                if delete_after:
                     try:
                         os.remove(file_info['path'])
                     except Exception as e:

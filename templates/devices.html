@@ -19,81 +19,171 @@
 
 <!-- Add/Edit Device Modal -->
 <div id="device-modal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-large">
         <div class="modal-header">
             <h2 id="modal-title">Add Device</h2>
             <button class="modal-close" onclick="closeDeviceModal()">&times;</button>
         </div>
-        <form id="device-form" onsubmit="saveDevice(event)">
-            <input type="hidden" id="device-id">
-            
-            <div class="form-group">
-                <label class="form-label">Device Name *</label>
-                <input type="text" id="device-name" class="form-input" required>
+        
+        <!-- Tabbed Interface -->
+        <div class="tabs">
+            <div class="tab-headers" id="tab-headers">
+                <button class="tab-header active" data-tab="basic" onclick="switchTab('basic')">
+                    Basic Info
+                </button>
+                <!-- Transfer rule tabs will be added dynamically -->
             </div>
             
-            <div class="form-group">
-                <label class="form-label">Drop Location *</label>
-                <input type="text" id="device-drop-location" class="form-input" required 
-                       placeholder="/mnt/nas/photos">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">File Types (comma-separated)</label>
-                <input type="text" id="device-file-types" class="form-input" 
-                       placeholder=".jpg, .jpeg, .mp4, .mov">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Naming Pattern</label>
-                <input type="text" id="device-naming-pattern" class="form-input" 
-                       value="{date}_{device}_{counter:04d}{ext}">
-                <small class="text-secondary">Variables: {date}, {datetime}, {device}, {counter}, {original}, {ext}</small>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Identifiers</label>
-                <input type="text" id="device-uuid" class="form-input" placeholder="UUID (optional)">
-                <input type="text" id="device-label" class="form-input mt-1" placeholder="Label (optional)">
-                <input type="text" id="device-vendor" class="form-input mt-1" placeholder="Vendor (optional)">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">
-                    <input type="checkbox" id="device-auto-ingest" class="form-checkbox" checked>
-                    Auto-ingest on detection
-                </label>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">
-                    <input type="checkbox" id="device-preserve-structure" class="form-checkbox" checked>
-                    Preserve directory structure
-                </label>
-                <small class="text-secondary">When checked, files are copied with their folder structure intact. Uncheck to flatten all files into one directory.</small>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">
-                    <input type="checkbox" id="device-delete-after" class="form-checkbox">
-                    Delete source files after successful transfer
-                </label>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">
-                    <input type="checkbox" id="device-enabled" class="form-checkbox" checked>
-                    Device enabled
-                </label>
-            </div>
-            
-            <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">Save Device</button>
-                <button type="button" class="btn btn-secondary" onclick="closeDeviceModal()">Cancel</button>
-            </div>
-        </form>
+            <form id="device-form" onsubmit="saveDevice(event)">
+                <input type="hidden" id="device-id">
+                
+                <!-- Basic Info Tab -->
+                <div class="tab-content active" id="tab-basic">
+                    <div class="form-group">
+                        <label class="form-label">Device Name *</label>
+                        <input type="text" id="device-name" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Identifiers</label>
+                        <input type="text" id="device-uuid" class="form-input" placeholder="UUID (optional)">
+                        <input type="text" id="device-label" class="form-input mt-1" placeholder="Label (optional)">
+                        <input type="text" id="device-vendor" class="form-input mt-1" placeholder="Vendor (optional)">
+                        <small class="text-secondary">Used to automatically detect and match this device when plugged in</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="device-auto-ingest" class="form-checkbox" checked>
+                            Auto-ingest on detection
+                        </label>
+                        <small class="text-secondary">Automatically start transfers when this device is detected</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="device-enabled" class="form-checkbox" checked>
+                            Device enabled
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Transfer Rules Tabs (added dynamically) -->
+                <div id="transfer-rules-container"></div>
+                
+                <!-- Footer Buttons -->
+                <div class="modal-footer">
+                    <div class="flex flex-between">
+                        <button type="button" class="btn btn-secondary" onclick="addTransferRule()">
+                            + Add Transfer Rule
+                        </button>
+                        <div class="flex gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="closeDeviceModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Device</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<style>
+/* Tab styling */
+.modal-large {
+    max-width: 800px;
+    width: 90%;
+}
+
+.tabs {
+    margin-top: 1rem;
+}
+
+.tab-headers {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+}
+
+.tab-header {
+    background: none;
+    border: none;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-header:hover {
+    color: #374151;
+}
+
+.tab-header.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.modal-footer {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.chip-input-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    min-height: 2.5rem;
+    cursor: text;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #3b82f6;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.chip-remove {
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 0.25rem;
+}
+
+.chip-input-container input {
+    border: none;
+    outline: none;
+    flex: 1;
+    min-width: 100px;
+}
+
+.rule-delete-btn {
+    margin-top: 1rem;
+    color: #ef4444;
+}
+</style>
 
 <script src="/static/js/devices.js"></script>
 {% endblock %}

@@ -12,6 +12,16 @@ settings:
     verify_checksums: true
     concurrent_transfers: 4  # Number of files to copy in parallel (1-8 recommended)
   web:
-    port: 5000
+    port: 80
     host: "0.0.0.0"
+  led:
+    enabled: false
+    pin: 18  # GPIO pin number (BCM numbering)
+    led_count: 144  # Number of LEDs in your strip
+    brightness: 128  # Brightness level (0-255)
+    idle_color: [0, 50, 255]  # RGB color for idle state (blue breathing)
+    progress_color: [0, 255, 0]  # RGB color for progress bar (green)
+    success_color: [0, 255, 0]  # RGB color for successful completion (green pulse)
+    error_color: [255, 0, 0]  # RGB color for errors (red flash)
+
 
