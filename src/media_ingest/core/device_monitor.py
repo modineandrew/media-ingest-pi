@@ -76,13 +76,15 @@ class DeviceMonitor:
                     except Exception as e:
                         print(f"Error in device_added callback: {e}")
     
-    def _handle_device_event(self, action: str, device: pyudev.Device):
+    def _handle_device_event(self, device: pyudev.Device):
         """Handle udev device events.
         
         Args:
-            action: Event action (add, remove, change).
             device: udev device object.
         """
+
+        action = device.action
+
         if action == 'add':
             # Wait a moment for the device to be mounted
             time.sleep(2)
